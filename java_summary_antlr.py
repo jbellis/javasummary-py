@@ -1,10 +1,12 @@
 import argparse
 import concurrent.futures
-from functools import partial
+import multiprocessing
 import os
 import sys
 import traceback
+
 from collections import defaultdict
+from functools import partial
 
 from antlr4 import *
 from tqdm.auto import tqdm
@@ -13,7 +15,7 @@ from JavaLexer import JavaLexer
 from JavaParser import JavaParser
 from JavaParserListener import JavaParserListener
 
-printed_packages = set()
+printed_packages = None
 class JavaSummaryListener(JavaParserListener):
     def __init__(self, methods_only=False):
         self.indentation = 0
@@ -30,7 +32,7 @@ class JavaSummaryListener(JavaParserListener):
         package_name = ctx.qualifiedName().getText()
         if package_name not in printed_packages:
             self.file_description += f"# Package {package_name}\n"  # Append to the string instead of printing
-            printed_packages.add(package_name)
+            printed_packages[package_name] = True
 
     def enterClassDeclaration(self, ctx):
         self.ignore_class[self.indentation] = False
@@ -113,7 +115,9 @@ class JavaSummaryListener(JavaParserListener):
         self.methods.append(f"{constructorName}({', '.join(params)})")
 
 
-def process_file(filepath, methods_only):
+def process_file(filepath, methods_only, pp):
+    global printed_packages
+    printed_packages = pp
     try:
         lexer = JavaLexer(FileStream(filepath, encoding='utf-8'))
         stream = CommonTokenStream(lexer)
@@ -135,11 +139,16 @@ def main(directory, methods_only):
             if filename.endswith('.java'):
                 files.append(os.path.join(root, filename))
 
-    f = partial(process_file, methods_only=methods_only)
+    manager = multiprocessing.Manager()
+    global printed_packages
+    printed_packages = manager.dict()  # Create a managed set for printed_packages
+
+    f = partial(process_file, methods_only=methods_only, pp=printed_packages)
     with concurrent.futures.ProcessPoolExecutor() as executor:
         descriptions = list(tqdm(executor.map(f, files), total=len(files)))
 
-    print('\n'.join(desc for desc in descriptions if desc is not None))
+    for description in descriptions:
+        print(description)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some java files.')
