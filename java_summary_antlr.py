@@ -24,12 +24,18 @@ class JavaSummaryListener(JavaParserListener):
             printed_packages.add(package_name)
 
     def enterClassDeclaration(self, ctx):
-        print(f"{'  ' * self.indentation}Class {ctx.identifier().getText()}:")
+        class_name = ctx.identifier().getText()
+        extends_clause = ''
+        implements_clause = ''
+
+        if ctx.EXTENDS():
+            extends_clause = f' extends {ctx.typeType().getText()}'
+        
+        if ctx.IMPLEMENTS():
+            implements_clause = f' implements {", ".join([type.getText() for type in ctx.typeList().typeType()])}'
+            
+        print(f"{'  ' * self.indentation}Class {class_name}{extends_clause}{implements_clause}:")
         self.indentation += 1
-        self.static_fields = []
-        self.fields = []
-        self.static_methods = []
-        self.methods = []
 
     def exitClassDeclaration(self, ctx):
         if self.static_fields:
