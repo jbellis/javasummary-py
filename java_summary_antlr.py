@@ -88,20 +88,22 @@ class JavaSummaryListener(JavaParserListener):
                 else:
                     self.fields.append(f"{fieldType} {varName}")
 
+    def parse_params(self, ctx):
+        params = []
+        if ctx.formalParameters().formalParameterList() is not None:
+            for child in ctx.formalParameters().formalParameterList().formalParameter():
+                paramType = child.typeType().getText()
+                paramName = child.variableDeclaratorId().getText()
+                params.append(f"{paramType} {paramName}")
+        return params
+
     def enterMethodDeclaration(self, ctx):
         if self.ignore_class[self.indentation]:
             return
         if ctx.identifier().getText() not in ['toString', 'equals', 'hashCode']:
             returnType = ctx.typeTypeOrVoid().getText()
             methodName = ctx.identifier().getText()
-            if ctx.formalParameters().formalParameterList() is not None:
-                params = []
-                for child in ctx.formalParameters().formalParameterList().formalParameter():
-                    paramType = child.typeType().getText()
-                    paramName = child.variableDeclaratorId().getText()
-                    params.append(f"{paramType} {paramName}")
-            else:
-                params = []
+            params = self.parse_params(ctx)
             if 'public' in ctx.getText():
                 if 'static' in ctx.getText():
                     self.static_methods.append(f"{returnType} {methodName}({', '.join(params)})")
@@ -112,10 +114,7 @@ class JavaSummaryListener(JavaParserListener):
         if self.ignore_class[self.indentation]:
             return
         constructorName = ctx.identifier().getText()
-        if ctx.formalParameters().formalParameterList() is not None:
-            params = [child.getText() for child in ctx.formalParameters().formalParameterList().formalParameter()]
-        else:
-            params = []
+        params = self.parse_params(ctx)
         self.methods.append(f"{constructorName}({', '.join(params)})")
 
 

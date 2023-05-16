@@ -21,7 +21,7 @@ Class SecondaryIndexBuilder extends CompactionInfo.Holder:
 Class SecondaryIndexManager implements IndexRegistry,INotificationConsumer:
   Class WriteTimeTransaction implements UpdateTransaction:
     Methods:
-      SecondaryIndexManager(ColumnFamilyStorebaseCfs)
+      SecondaryIndexManager(ColumnFamilyStore baseCfs)
       void buildIndexesBlocking(Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
       WriteTimeTransaction()
       void onUpdated(Row existing, Row updated)
