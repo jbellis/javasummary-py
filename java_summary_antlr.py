@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import traceback
+from collections import defaultdict
 
 from antlr4 import *
 from JavaLexer import JavaLexer
@@ -17,17 +18,18 @@ class JavaSummaryListener(JavaParserListener):
         self.static_methods = []
         self.methods = []
         self.methods_only = methods_only
-        self.ignore_class = False
+        self.ignore_class = defaultdict(bool)
+        self.file_description = ""  # New variable to store the class description
 
     def enterPackageDeclaration(self, ctx):
         global printed_packages
         package_name = ctx.qualifiedName().getText()
         if package_name not in printed_packages:
-            print(f"# Package {package_name}")
+            self.file_description += f"# Package {package_name}\n"  # Append to the string instead of printing
             printed_packages.add(package_name)
 
     def enterClassDeclaration(self, ctx):
-        self.ignore_class = False
+        self.ignore_class[self.indentation] = False
         class_name = ctx.identifier().getText()
         extends_clause = ''
         implements_clause = ''
@@ -35,7 +37,7 @@ class JavaSummaryListener(JavaParserListener):
         if ctx.EXTENDS():
             extended = ctx.typeType().getText()
             if 'Exception' in extended or 'Error' in extended:
-                self.ignore_class = True
+                self.ignore_class[self.indentation] = True
                 return
             extends_clause = f' extends {extended}'
 
@@ -43,31 +45,34 @@ class JavaSummaryListener(JavaParserListener):
             istring = ', '.join(I.getText() for I in ctx.typeList())
             implements_clause = f' implements {istring}'
 
-        print(f"{'  ' * self.indentation}Class {class_name}{extends_clause}{implements_clause}:")
+        self.file_description += f"{'  ' * self.indentation}Class {class_name}{extends_clause}{implements_clause}:\n"
         self.indentation += 1
 
     def exitClassDeclaration(self, ctx):
-        if not self.methods_only:
-            if self.static_fields:
-                print(f"{'  ' * self.indentation}Static fields:")
-                for field in self.static_fields:
-                    print(f"{'  ' * self.indentation}  {field}")
-        if self.static_methods:
-            print(f"{'  ' * self.indentation}Static methods:")
-            for method in self.static_methods:
-                print(f"{'  ' * self.indentation}  {method}")
-        if not self.methods_only:
-            if self.fields:
-                print(f"{'  ' * self.indentation}Fields:")
-                for field in self.fields:
-                    print(f"{'  ' * self.indentation}  {field}")
-        if self.methods:
-            print(f"{'  ' * self.indentation}Methods:")
-            for method in self.methods:
-                print(f"{'  ' * self.indentation}  {method}")
+        if not self.ignore_class[self.indentation]:
+            if not self.methods_only:
+                if self.static_fields:
+                    self.file_description += f"{'  ' * self.indentation}Static fields:\n"
+                    for field in self.static_fields:
+                        self.file_description += f"{'  ' * self.indentation}  {field}\n"
+            if self.static_methods:
+                self.file_description += f"{'  ' * self.indentation}Static methods:\n"
+                for method in self.static_methods:
+                    self.file_description += f"{'  ' * self.indentation}  {method}\n"
+            if not self.methods_only:
+                if self.fields:
+                    self.file_description += f"{'  ' * self.indentation}Fields:\n"
+                    for field in self.fields:
+                        self.file_description += f"{'  ' * self.indentation}  {field}\n"
+            if self.methods:
+                self.file_description += f"{'  ' * self.indentation}Methods:\n"
+                for method in self.methods:
+                    self.file_description += f"{'  ' * self.indentation}  {method}\n"
         self.indentation -= 1
 
     def enterFieldDeclaration(self, ctx):
+        if self.ignore_class[self.indentation]:
+            return
         fieldType = ctx.typeType().getText()
         for varDec in ctx.variableDeclarators().variableDeclarator():
             varName = varDec.variableDeclaratorId().getText()
@@ -78,6 +83,8 @@ class JavaSummaryListener(JavaParserListener):
                     self.fields.append(f"{fieldType} {varName}")
 
     def enterMethodDeclaration(self, ctx):
+        if self.ignore_class[self.indentation]:
+            return
         if ctx.identifier().getText() not in ['toString', 'equals', 'hashCode']:
             returnType = ctx.typeTypeOrVoid().getText()
             methodName = ctx.identifier().getText()
@@ -92,6 +99,8 @@ class JavaSummaryListener(JavaParserListener):
                     self.methods.append(f"{returnType} {methodName}({', '.join(params)})")
 
     def enterConstructorDeclaration(self, ctx):
+        if self.ignore_class[self.indentation]:
+            return
         constructorName = ctx.identifier().getText()
         if ctx.formalParameters().formalParameterList() is not None:
             params = [child.getText() for child in ctx.formalParameters().formalParameterList().formalParameter()]
@@ -114,8 +123,11 @@ def main(directory, methods_only):
                     walker = ParseTreeWalker()
                     listener = JavaSummaryListener(methods_only=methods_only)
                     walker.walk(listener, tree)
+
+                    print(listener.file_description)  # Print the class description here
                 except Exception as e:
                     raise Exception(f"Error processing {filepath}: {e}\n{traceback.format_exc()}")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some java files.')
