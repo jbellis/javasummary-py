@@ -17,6 +17,7 @@ class JavaSummaryListener(JavaParserListener):
         self.static_methods = []
         self.methods = []
         self.methods_only = methods_only
+        self.ignore_class = False
 
     def enterPackageDeclaration(self, ctx):
         global printed_packages
@@ -26,20 +27,21 @@ class JavaSummaryListener(JavaParserListener):
             printed_packages.add(package_name)
 
     def enterClassDeclaration(self, ctx):
+        self.ignore_class = False
         class_name = ctx.identifier().getText()
         extends_clause = ''
         implements_clause = ''
 
         if ctx.EXTENDS():
-            extends_clause = f' extends {ctx.typeType().getText()}'
+            extended = ctx.typeType().getText()
+            if 'Exception' in extended or 'Error' in extended:
+                self.ignore_class = True
+                return
+            extends_clause = f' extends {extended}'
 
         if ctx.IMPLEMENTS():
-            type_list = ctx.typeList()
-            implements_list = []
-            for type_ctx in type_list:
-                if isinstance(type_ctx, JavaParser.TypeTypeContext):
-                    implements_list.append(type_ctx.getText())
-            implements_clause = f' implements {", ".join(implements_list)}'
+            istring = ', '.join(I.getText() for I in ctx.typeList())
+            implements_clause = f' implements {istring}'
 
         print(f"{'  ' * self.indentation}Class {class_name}{extends_clause}{implements_clause}:")
         self.indentation += 1

@@ -1,7 +1,7 @@
 # JavaSummary
-This is a Python script that uses ANTLR to parse Java code and generate a summary of the classes, fields, and methods in the code. The summary is printed to the console.
+This is a Python script that uses ANTLR to recursively parse a Java package and generate a summary of the classes, fields, and methods found. The summary is printed to stdout.
 
-This is intended to give LLMs a complete overview while being concise enough to fit in its context window.
+This is an experiment to give LLMs a complete overview while being concise enough to fit in its context window.
 
 Java grammar from https://github.com/antlr/grammars-v4/tree/master/java/java
 
