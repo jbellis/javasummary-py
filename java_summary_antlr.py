@@ -30,10 +30,15 @@ class JavaSummaryListener(JavaParserListener):
 
         if ctx.EXTENDS():
             extends_clause = f' extends {ctx.typeType().getText()}'
-        
+
         if ctx.IMPLEMENTS():
-            implements_clause = f' implements {", ".join([type.getText() for type in ctx.typeList().typeType()])}'
-            
+            type_list = ctx.typeList()
+            implements_list = []
+            for type_ctx in type_list:
+                if isinstance(type_ctx, JavaParser.TypeTypeContext):
+                    implements_list.append(type_ctx.getText())
+            implements_clause = f' implements {", ".join(implements_list)}'
+
         print(f"{'  ' * self.indentation}Class {class_name}{extends_clause}{implements_clause}:")
         self.indentation += 1
 
