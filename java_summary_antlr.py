@@ -1,9 +1,12 @@
+import os
+import sys
+
 from antlr4 import *
 from JavaLexer import JavaLexer
 from JavaParser import JavaParser
-from JavaParserBaseListener import JavaParserBaseListener
+from JavaParserListener import JavaParserListener
 
-class JavaSummaryListener(JavaParserBaseListener):
+class JavaSummaryListener(JavaParserListener):
     def __init__(self):
         self.indentation = 0
 
@@ -43,17 +46,25 @@ class JavaSummaryListener(JavaParserBaseListener):
         params = [child.getText() for child in ctx.formalParameters().formalParameterList().formalParameter()]
         print(f"{'  ' * self.indentation}Methods:\n{'  ' * self.indentation}  {constructorName}({', '.join(params)})")
 
-def main():
-    for filename in os.listdir(os.getcwd()):
-        if filename.endswith('.java'):
-            lexer = JavaLexer(FileStream(filename))
-            stream = CommonTokenStream(lexer)
-            parser = JavaParser(stream)
-            tree = parser.compilationUnit()
+def main(directory):
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if filename.endswith('.java'):
+                filepath = os.path.join(root, filename)
+                lexer = JavaLexer(FileStream(filepath))
+                stream = CommonTokenStream(lexer)
+                parser = JavaParser(stream)
+                tree = parser.compilationUnit()
 
-            walker = ParseTreeWalker()
-            listener = JavaSummaryListener()
-            walker.walk(listener, tree)
+                walker = ParseTreeWalker()
+                listener = JavaSummaryListener()
+                walker.walk(listener, tree)
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) < 2:
+        print("Please provide a directory to scan as the first command line argument.")
+        sys.exit(1)
+
+    directory = sys.argv[1]
+    main(directory) 
+      
