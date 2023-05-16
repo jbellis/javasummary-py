@@ -7,6 +7,7 @@ from JavaLexer import JavaLexer
 from JavaParser import JavaParser
 from JavaParserListener import JavaParserListener
 
+printed_packages = set()
 class JavaSummaryListener(JavaParserListener):
     def __init__(self):
         self.indentation = 0
@@ -14,13 +15,13 @@ class JavaSummaryListener(JavaParserListener):
         self.fields = []
         self.static_methods = []
         self.methods = []
-        self.printed_packages = set()
 
     def enterPackageDeclaration(self, ctx):
+        global printed_packages
         package_name = ctx.qualifiedName().getText()
-        if package_name not in self.printed_packages:
+        if package_name not in printed_packages:
             print(f"# Package {package_name}")
-            self.printed_packages.add(package_name)
+            printed_packages.add(package_name)
 
     def enterClassDeclaration(self, ctx):
         print(f"{'  ' * self.indentation}Class {ctx.identifier().getText()}:")
@@ -88,7 +89,7 @@ def main(directory):
             if filename.endswith('.java'):
                 try:
                     filepath = os.path.join(root, filename)
-                    lexer = JavaLexer(FileStream(filepath))
+                    lexer = JavaLexer(FileStream(filepath, encoding='utf-8'))
                     stream = CommonTokenStream(lexer)
                     parser = JavaParser(stream)
                     tree = parser.compilationUnit()
@@ -97,7 +98,7 @@ def main(directory):
                     listener = JavaSummaryListener()
                     walker.walk(listener, tree)
                 except Exception as e:
-                    raise Exception(f"Error processing {filepath}: {e}\n{traceback.format_exc()}")                    raise Exception(f"Error processing {filepath}: {e}\n{traceback.format_exc()}")
+                    raise Exception(f"Error processing {filepath}: {e}\n{traceback.format_exc()}")
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
