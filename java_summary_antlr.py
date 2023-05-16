@@ -95,7 +95,11 @@ class JavaSummaryListener(JavaParserListener):
             returnType = ctx.typeTypeOrVoid().getText()
             methodName = ctx.identifier().getText()
             if ctx.formalParameters().formalParameterList() is not None:
-                params = [child.getText() for child in ctx.formalParameters().formalParameterList().formalParameter()]
+                params = []
+                for child in ctx.formalParameters().formalParameterList().formalParameter():
+                    paramType = child.typeType().getText()
+                    paramName = child.variableDeclaratorId().getText()
+                    params.append(f"{paramType} {paramName}")
             else:
                 params = []
             if 'public' in ctx.getText():

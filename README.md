@@ -16,14 +16,14 @@ Java grammar from https://github.com/antlr/grammars-v4/tree/master/java/java
 
 ```
 # Package org.apache.cassandra.index
-Class IndexNotAvailableException extends RuntimeException:
-  Methods:
-    IndexNotAvailableException(Indexindex)
 Class SecondaryIndexBuilder extends CompactionInfo.Holder:
-Class SecondaryIndexManager implements :
-  Class WriteTimeTransaction implements :
-    Fields:
-      int DEFAULT_PAGE_SIZE
-      Map<String,Index> indexes
+
+Class SecondaryIndexManager implements IndexRegistry,INotificationConsumer:
+  Class WriteTimeTransaction implements UpdateTransaction:
+    Methods:
+      SecondaryIndexManager(ColumnFamilyStorebaseCfs)
+      void buildIndexesBlocking(Collection<SSTableReader> sstables, Set<Index> indexes, boolean isFullRebuild)
+      WriteTimeTransaction()
+      void onUpdated(Row existing, Row updated)
 ...
 ```
