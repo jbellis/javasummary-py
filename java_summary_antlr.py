@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 import traceback
@@ -9,12 +10,13 @@ from JavaParserListener import JavaParserListener
 
 printed_packages = set()
 class JavaSummaryListener(JavaParserListener):
-    def __init__(self):
+    def __init__(self, methods_only=False):
         self.indentation = 0
         self.static_fields = []
         self.fields = []
         self.static_methods = []
         self.methods = []
+        self.methods_only = methods_only
 
     def enterPackageDeclaration(self, ctx):
         global printed_packages
@@ -43,18 +45,20 @@ class JavaSummaryListener(JavaParserListener):
         self.indentation += 1
 
     def exitClassDeclaration(self, ctx):
-        if self.static_fields:
-            print(f"{'  ' * self.indentation}Static fields:")
-            for field in self.static_fields:
-                print(f"{'  ' * self.indentation}  {field}")
-        if self.fields:
-            print(f"{'  ' * self.indentation}Fields:")
-            for field in self.fields:
-                print(f"{'  ' * self.indentation}  {field}")
+        if not self.methods_only:
+            if self.static_fields:
+                print(f"{'  ' * self.indentation}Static fields:")
+                for field in self.static_fields:
+                    print(f"{'  ' * self.indentation}  {field}")
         if self.static_methods:
             print(f"{'  ' * self.indentation}Static methods:")
             for method in self.static_methods:
                 print(f"{'  ' * self.indentation}  {method}")
+        if not self.methods_only:
+            if self.fields:
+                print(f"{'  ' * self.indentation}Fields:")
+                for field in self.fields:
+                    print(f"{'  ' * self.indentation}  {field}")
         if self.methods:
             print(f"{'  ' * self.indentation}Methods:")
             for method in self.methods:
@@ -94,7 +98,7 @@ class JavaSummaryListener(JavaParserListener):
         self.methods.append(f"{constructorName}({', '.join(params)})")
 
 
-def main(directory):
+def main(directory, methods_only):
     for root, dirs, files in os.walk(directory):
         for filename in files:
             if filename.endswith('.java'):
@@ -106,15 +110,16 @@ def main(directory):
                     tree = parser.compilationUnit()
 
                     walker = ParseTreeWalker()
-                    listener = JavaSummaryListener()
+                    listener = JavaSummaryListener(methods_only=methods_only)
                     walker.walk(listener, tree)
                 except Exception as e:
                     raise Exception(f"Error processing {filepath}: {e}\n{traceback.format_exc()}")
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Please provide a directory to scan as the first command line argument.")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Process some java files.')
+    parser.add_argument('directory', type=str, help='A directory to scan')
+    parser.add_argument('--methods-only', action='store_true', help='Omit fields from the output')
 
-    directory = sys.argv[1]
-    main(directory) 
+    args = parser.parse_args()
+
+    main(args.directory, args.methods_only)
