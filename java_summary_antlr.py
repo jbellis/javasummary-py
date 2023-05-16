@@ -1,10 +1,14 @@
 import argparse
+import concurrent.futures
+from functools import partial
 import os
 import sys
 import traceback
 from collections import defaultdict
 
 from antlr4 import *
+from tqdm.auto import tqdm
+
 from JavaLexer import JavaLexer
 from JavaParser import JavaParser
 from JavaParserListener import JavaParserListener
@@ -109,25 +113,33 @@ class JavaSummaryListener(JavaParserListener):
         self.methods.append(f"{constructorName}({', '.join(params)})")
 
 
+def process_file(filepath, methods_only):
+    try:
+        lexer = JavaLexer(FileStream(filepath, encoding='utf-8'))
+        stream = CommonTokenStream(lexer)
+        parser = JavaParser(stream)
+        tree = parser.compilationUnit()
+
+        walker = ParseTreeWalker()
+        listener = JavaSummaryListener(methods_only=methods_only)
+        walker.walk(listener, tree)
+
+        return listener.file_description  # Return the class description here
+    except Exception as e:
+        raise Exception(f"Error processing {filepath}: {e}\n{traceback.format_exc()}")
+
 def main(directory, methods_only):
-    for root, dirs, files in os.walk(directory):
-        for filename in files:
+    files = []
+    for root, dirs, filenames in os.walk(directory):
+        for filename in filenames:
             if filename.endswith('.java'):
-                try:
-                    filepath = os.path.join(root, filename)
-                    lexer = JavaLexer(FileStream(filepath, encoding='utf-8'))
-                    stream = CommonTokenStream(lexer)
-                    parser = JavaParser(stream)
-                    tree = parser.compilationUnit()
+                files.append(os.path.join(root, filename))
 
-                    walker = ParseTreeWalker()
-                    listener = JavaSummaryListener(methods_only=methods_only)
-                    walker.walk(listener, tree)
+    f = partial(process_file, methods_only=methods_only)
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        descriptions = list(tqdm(executor.map(f, files), total=len(files)))
 
-                    print(listener.file_description)  # Print the class description here
-                except Exception as e:
-                    raise Exception(f"Error processing {filepath}: {e}\n{traceback.format_exc()}")
-
+    print('\n'.join(desc for desc in descriptions if desc is not None))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some java files.')
