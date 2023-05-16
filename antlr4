@@ -1,0 +1,3 @@
+#!/bin/bash
+
+java -jar /Users/jason/antlr/antlr-4.9.1-complete.jar -Dlanguage=Python3 "$@"
